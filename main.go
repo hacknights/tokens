@@ -14,9 +14,12 @@ func main() {
 
 	//TODO: read config
 
+	app := newApp()
+	always := use(performanceLogging, recuperate)
+
 	s := &http.Server{ //TODO: TLS
 		Addr:           ":8080", //TODO: use config
-		Handler:        newApp(),
+		Handler:        always(app.ServeHTTP),
 		ReadTimeout:    5 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		IdleTimeout:    120 * time.Second,

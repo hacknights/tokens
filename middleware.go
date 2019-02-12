@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"encoding/base64"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,19 +11,6 @@ import (
 
 	jwt "github.com/dgrijalva/jwt-go"
 )
-
-// at a glance routes directs us where to look. defines middleware on routes
-func (a *app) routes() {
-
-	always := use(performanceLogging, recuperate)
-
-	a.HandleFunc(http.MethodGet, "/tokens", a.handleTokens(signKey)).With(basicAuth(a.identity.ByCredentials), always)
-	a.HandleFunc(http.MethodGet, "/refresh", a.handleRefresh()).With(jwtAuth(), always)
-	a.HandleFunc(http.MethodGet, "/revoke", a.handleRevoke()).With(jwtAuth(), always)
-	a.HandleFunc(http.MethodGet, "/revoke-all", a.handleRevokeAll()).With(jwtAuth(), always)
-
-	a.HandleFunc(http.MethodGet, "/restricted", a.handleRevokeAll()).With(jwtAuth(), always)
-}
 
 func use(middleware ...func(http.HandlerFunc) http.HandlerFunc) func(http.HandlerFunc) http.HandlerFunc {
 	return func(h http.HandlerFunc) http.HandlerFunc {
@@ -50,28 +36,16 @@ func basicAuth(authenticate authenticatorFunc) func(h http.HandlerFunc) http.Han
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 
+			//TODO: is this required?
 			w.Header().Set("WWW-Authenticate", `Basic realm="Fail"`)
 
-			s := strings.SplitN(r.Header.Get("Authorization"), " ", 2)
-			if len(s) != 2 {
+			user, pass, ok := r.BasicAuth()
+			if !ok {
 				http.Error(w, "Not authorized", http.StatusUnauthorized)
 				return
 			}
 
-			b, err := base64.StdEncoding.DecodeString(s[1])
-			if err != nil {
-				http.Error(w, err.Error(), http.StatusUnauthorized)
-				return
-			}
-
-			pair := strings.SplitN(string(b), ":", 2)
-			if len(pair) != 2 {
-				http.Error(w, "Not authorized", http.StatusUnauthorized)
-				return
-			}
-
-			fmt.Println(pair[0], pair[1])
-			identity, err := authenticate(pair[0], pair[1])
+			identity, err := authenticate(user, pass)
 			if err != nil {
 				http.Error(w, "Not authorized", http.StatusUnauthorized)
 				return
@@ -145,13 +119,38 @@ func jwtAuth() func(h http.HandlerFunc) http.HandlerFunc {
 //   http.Handle("/", performanceLogging(r))
 func performanceLogging(next http.HandlerFunc) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		l := newLoggingResponseWriter(w)
 		start := time.Now()
 		defer func() {
 			elapsed := time.Since(start)
-			log.Printf("%s\t%s", elapsed.String(), r.RequestURI)
+			log.Printf("%3d\t%-7d\t%s\t%s", l.statusCode, l.length, elapsed.String(), r.RequestURI)
 		}()
-		next.ServeHTTP(w, r)
+		next.ServeHTTP(l, r)
 	})
+}
+
+type loggingResponseWriter struct {
+	http.ResponseWriter
+	statusCode int
+	length     int
+}
+
+func newLoggingResponseWriter(w http.ResponseWriter) *loggingResponseWriter {
+	return &loggingResponseWriter{
+		ResponseWriter: w,
+		statusCode:     http.StatusOK,
+		length:         0}
+}
+
+func (lrw *loggingResponseWriter) WriteHeader(code int) {
+	lrw.statusCode = code
+	lrw.ResponseWriter.WriteHeader(code)
+}
+
+func (lrw *loggingResponseWriter) Write(b []byte) (int, error) {
+	n, err := lrw.ResponseWriter.Write(b)
+	lrw.length = n
+	return n, err
 }
 
 // recuperate catches panics in handlers, logs the stack trace and serves an HTTP 500 error.
@@ -159,7 +158,7 @@ func performanceLogging(next http.HandlerFunc) http.HandlerFunc {
 // Example:
 //   http.Handle("/", recuperate(r))
 func recuperate(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer func() {
 			if err := recover(); err != nil {
 				http.Error(w, "HTTP 500: internal server error (we've logged it!)", http.StatusInternalServerError)
@@ -167,5 +166,5 @@ func recuperate(next http.HandlerFunc) http.HandlerFunc {
 			}
 		}()
 		next.ServeHTTP(w, r)
-	}
+	})
 }
