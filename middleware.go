@@ -10,6 +10,7 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/google/uuid"
 )
 
 func use(middleware ...func(http.HandlerFunc) http.HandlerFunc) func(http.HandlerFunc) http.HandlerFunc {
@@ -124,6 +125,21 @@ func jwtAuth() func(h http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+// traceIDs writes the RequestID, and possibly CorrelationID, in the Request header
+//
+// Example:
+//   http.Handle("/", traceIDs(r))
+func traceIDs(next http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		r2 := new(http.Request)
+		*r2 = *r
+		rid := uuid.New().String()
+		r2.Header.Set("X-Request-Id", rid)
+		//TODO: if not already set, copy RequestID to CorrelationID...?
+		next(w, r2)
+	})
+}
+
 // performanceLogging writes the RequestURI and duration of handlers
 //
 // Example:
@@ -134,7 +150,8 @@ func performanceLogging(next http.HandlerFunc) http.HandlerFunc {
 		start := time.Now()
 		defer func() {
 			elapsed := time.Since(start)
-			log.Printf("%3d\t%-7d\t%s\t%s", l.statusCode, l.length, elapsed.String(), r.RequestURI)
+			rid := r.Header["X-Request-Id"]
+			log.Printf("%s\t%3d\t%-7d\t%s\t%s", rid, l.statusCode, l.length, elapsed.String(), r.RequestURI)
 		}()
 		next.ServeHTTP(l, r)
 	})

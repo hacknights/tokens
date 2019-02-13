@@ -16,7 +16,7 @@ func main() {
 	//TODO: read config
 
 	app := newApp()
-	always := use(performanceLogging, recuperate)
+	always := use(traceIDs, performanceLogging, recuperate)
 
 	s := &http.Server{ //TODO: TLS
 		Addr:           ":8080", //TODO: use config
