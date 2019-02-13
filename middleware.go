@@ -90,19 +90,30 @@ func jwtAuth() func(h http.HandlerFunc) http.HandlerFunc {
 	return func(next http.HandlerFunc) http.HandlerFunc {
 		return func(w http.ResponseWriter, r *http.Request) {
 
-			value, err := jwtValue(r)
+			tokenString, err := jwtValue(r)
 			if err != nil {
 				http.Error(w, "invalid token", http.StatusUnauthorized)
 				log.Printf("jwtValue: %+v\n", err)
 				return
 			}
 
-			token, err := jwt.Parse(value, keyFunc)
+			jwt.ParseWithClaims(
+				tokenString,
+				jwt.StandardClaims{
+					Issuer:   "",
+					Audience: "",
+				},
+				keyFunc,
+			)
+			//ParseWithClaims
+			token, err := jwt.Parse(tokenString, keyFunc)
 			if err != nil {
 				http.Error(w, "invalid token", http.StatusUnauthorized)
 				log.Printf("jwtParse: %+v\n", err)
 				return
 			}
+
+			token.Claims.Valid()
 
 			//TODO: verify required claims
 
@@ -149,7 +160,7 @@ func (lrw *loggingResponseWriter) WriteHeader(code int) {
 
 func (lrw *loggingResponseWriter) Write(b []byte) (int, error) {
 	n, err := lrw.ResponseWriter.Write(b)
-	lrw.length = n
+	lrw.length += n
 	return n, err
 }
 

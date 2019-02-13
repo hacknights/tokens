@@ -41,40 +41,37 @@ func fatal(err error) {
 	}
 }
 
-// User is a minimal interface for JWT
-type User interface {
-	ID() string
-	Claims() map[string]interface{}
-}
-
-func createTokens(u User, signKey *rsa.PrivateKey) (string, string, error) {
+func createTokens(u *identity, signKey *rsa.PrivateKey) (string, string, error) {
 
 	access := func() (string, error) {
-		// create a signer for rsa 256
-		t := jwt.New(jwt.GetSigningMethod("RS256"))
-
 		//Custom Claims
-		t.Claims = u.Claims()
+		mc := jwt.MapClaims{}
+		for k, v := range u.Claims {
+			mc[k] = v
+		}
+
 		//Standard Claims
 		now := time.Now()
-		t.Claims["iss"] = "https://auth.authidate.com" //issuer - the authorization server that issued the token
-		t.Claims["aud"] = "https://api.authidate.com"  //audience - the relaying party(s) that can use the token (application)
-		t.Claims["sub"] = u.ID()                       //subject - end user identifier
-		t.Claims["iat"] = now.Unix()
-		t.Claims["exp"] = now.Add(time.Minute * 1).Unix() //TODO: configurable expiration
+		mc["iss"] = "https://auth.tokens.com" //issuer - the authorization server that issued the token
+		mc["aud"] = "https://api.devable.com" //audience - the relaying party(s) that can use the token (application)
+		mc["sub"] = u.ID                      //subject - end user identifier
+		mc["iat"] = now.Unix()
+		mc["exp"] = now.Add(time.Minute * 1).Unix() //TODO: configurable expiration
+
+		// create a signer for rsa 256
+		t := jwt.NewWithClaims(jwt.SigningMethodRS512, mc)
 		return t.SignedString(signKey)
 	}
 
 	refresh := func() (string, error) {
-		// create a signer for rsa 256
-		t := jwt.New(jwt.GetSigningMethod("RS256"))
-		//Standard Claims
 		now := time.Now()
-		t.Claims["jti"] = "uuid"
-		t.Claims["iss"] = "https://auth.authidate.com" //issuer - the authorization server that issued the token
-		t.Claims["sub"] = u.ID()                       //subject - end user identifier
-		t.Claims["iat"] = now.Unix()
-		t.Claims["exp"] = now.Add(time.Hour * 24 * 7).Unix() //TODO: configurable expiration
+		t := jwt.NewWithClaims(jwt.SigningMethodRS512, jwt.StandardClaims{
+			Issuer:    "https://auth.tokens.com",
+			Audience:  "https://api.devable.com",
+			Subject:   u.ID,
+			IssuedAt:  now.Unix(),
+			ExpiresAt: now.Add(time.Hour * 24 * 7).Unix(), //TODO: configurable expiration
+		})
 		return t.SignedString(signKey)
 	}
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/rsa"
 	"encoding/json"
 	"fmt"
 	"net/http"
@@ -11,12 +12,17 @@ type identityClient struct {
 }
 
 func (ic *identityClient) ByCredentials(user, pass string) (*identity, error) {
+	type result struct {
+		Ok      bool     `json:"ok"`
+		Errors  []string `json:"errors,omitempty"`
+		Content identity `json:"content,omitempty"`
+	}
 
 	client := &http.Client{
 		Timeout: time.Millisecond * 50, //TODO: configure this...
 	}
 
-	req, err := http.NewRequest("GET", "http://:8080/tokens", nil) //TODO: config
+	req, err := http.NewRequest("GET", "http://:8080/authenticate", nil) //TODO: config
 	if err != nil {
 		return nil, err
 	}
@@ -34,24 +40,35 @@ func (ic *identityClient) ByCredentials(user, pass string) (*identity, error) {
 	}
 
 	dec := json.NewDecoder(resp.Body)
-	result := identity{}
-	if err := dec.Decode(result); err != nil {
+	res := result{}
+	if err := dec.Decode(&res); err != nil {
 		return nil, err
 	}
-	return &result, nil
-	//return &identity{}, nil
+	return &res.Content, nil
 }
 
 type identity struct {
+	ID     string                 `json:"id,omitempty"`
+	Claims map[string]interface{} `json:"claims,omitempty"`
 }
 
-func (i *identity) ID() string {
-	return "anonymous"
-}
+//TODO: Move this method onto identity
+func (u *identity) GenerateTokens(signKey *rsa.PrivateKey) (interface{}, int, error) {
 
-func (i *identity) Claims() map[string]interface{} {
-	return map[string]interface{}{
-		"fn":   "Joe",
-		"role": "basic",
+	access, refresh, err := createTokens(u, signKey) //todo: attach this to handler (don't need signKey)
+	if err != nil {
+		fmt.Printf("Token Signing error: %v\n", err)                                  //TODO: use handler's logger
+		return nil, http.StatusInternalServerError, fmt.Errorf("error signing token") //TODO: compose errors
 	}
+
+	//TODO: save access claims by refresh.jti
+	//TODO: refresh.jti by refresh.sub
+
+	return struct {
+		Access  string `json:"access"`
+		Refresh string `json:"refresh"`
+	}{
+		access,
+		refresh,
+	}, http.StatusOK, nil
 }

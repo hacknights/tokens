@@ -1,6 +1,7 @@
 package main
 
 import (
+	_ "expvar" //standardized metrics (GET /debug/vars)
 	"fmt"
 	"log"
 	"net/http"
@@ -36,7 +37,7 @@ func handleInterrupts(ch chan os.Signal) {
 	signal.Notify(ch, os.Interrupt)
 	go func() {
 		for sig := range ch {
-			fmt.Printf("Exiting... %v\n", sig)
+			fmt.Printf("Exit... %v\n", sig)
 			ch = nil
 			os.Exit(1)
 		}
