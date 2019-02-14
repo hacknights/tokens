@@ -175,23 +175,10 @@ func (l *loggingResponseWriter) WriteHeader(code int) {
 	l.ResponseWriter.WriteHeader(code)
 }
 
-func (lrw *loggingResponseWriter) Write(b []byte) (int, error) {
-	n, err := lrw.ResponseWriter.Write(b)
-	lrw.length += n
+func (l *loggingResponseWriter) Write(b []byte) (int, error) {
+	n, err := l.ResponseWriter.Write(b)
+	l.length += n
 	return n, err
-}
-
-// requestID attaches a uniqueId X-Request-Id header
-//
-// Example:
-//   http.Handle("/", recuperate(r))
-func requestID(h http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		r2 := new(http.Request)
-		*r2 = *r
-		r2.Header.Set("X-Request-Id", uuid.NewV4().String())
-		h.ServeHTTP(w, r2)
-	})
 }
 
 // recuperate catches panics in handlers, logs the stack trace and serves an HTTP 500 error.
