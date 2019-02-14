@@ -7,6 +7,7 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/google/uuid"
 )
 
 // location of the files used for signing and verification
@@ -66,6 +67,7 @@ func createTokens(u *identity, signKey *rsa.PrivateKey) (string, string, error) 
 	refresh := func() (string, error) {
 		now := time.Now()
 		t := jwt.NewWithClaims(jwt.SigningMethodRS512, jwt.StandardClaims{
+			Id:        uuid.New().String(),
 			Issuer:    "https://auth.tokens.com",
 			Audience:  "https://api.devable.com",
 			Subject:   u.ID,
