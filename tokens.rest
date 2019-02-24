@@ -1,39 +1,44 @@
-@host = :8080
+@host = :8081
+@tokens = :8081
 @usery = :8080
-@basic = Basic YWRtaW46YWRtaW4=
-@jwt_refresh = Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJodHRwczovL2FwaS5hdXRoaWRhdGUuY29tIiwiZXhwIjoxNTUwNDU5NDUxLCJpYXQiOjE1NDk4NTQ2NTEsImlzcyI6Imh0dHBzOi8vYXV0aC5hdXRoaWRhdGUuY29tIiwianRpIjoidXVpZCIsInN1YiI6ImFub255bW91cyJ9.kh7fm381TgjjQOvYrS6NZVD_03-Ifuam3iM15W_6De0hbCswFZysF1SsPrupjfkoP-dWU1wAuwL9c8K8s-AUeKZuTRjLCpfqnZ9TJaTAnz4z3Ig5iF8Xk1sOpPp8bvo3e9DvNeQFK99SuZegMK_8rdo77UO6iwvhWe5EXB15Wa3HGnTd0N0IZAe3FOF9cZyAyBvjY52m9XqxApZppVkpjdwejs_e4em_foHhwvDOX6A1TfN7U4ZUzmm8HVDuac_e4bUMfXJTV4dtk3fn5DI5lBx-eAxkV6razBGo_Xuz2I6Zh9mpqvwADR-pv7ayqtYKwu3gW8O9JnzMR6oeNL1OmKl_5RiMmVXWfrHyiFnYdqLHpELvNb2nvRLavLddaGlJga9qCG1Zd4YvuIh1SQqOXsDbW9KL9ocNqxe2YKTqBx06WneznYms-rhCp0padqKl4KIHR6y2NPHyvNwsRgj7_46IzG4WUP4hJLEPArN2dH79WUmuw9bsxgVYzPvrPyagDFJtbvTPx4WMuetCQf5o25e5Y3czFSlxRfL6ct7CPbUoDe6ixULJrIuYB1E1WlOLR0D-f3t1MD5JYFmS3YnGR8jm11JM2rqUmiDqpztT8VZEUkDdZy26CnnuKcgCFpJss8HIOVZG4WfC1xzr_wBn_zXs9_RWLEL9KJ9gEGkP7xE
-@jwt_access = Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJodHRwczovL2FwaS5hdXRoaWRhdGUuY29tIiwiZXhwIjoxNTQ5ODU0NzExLCJpYXQiOjE1NDk4NTQ2NTEsImlzcyI6Imh0dHBzOi8vYXV0aC5hdXRoaWRhdGUuY29tIiwic3ViIjoiYW5vbnltb3VzIn0.QK2y_NTuOh7qlE2Wh20whlCNLfQX_3G4WjSXctChwdJ3kyY2UoFJjyskvGdxMA5ynmD36cNcygpyZSWSC2xRbqMy4h4vrKmNpW-Vw0tJ_pLvCvfTTPLNvlgGK_7Vu3UFMjjVFsyXisF-D880qs1dgrrxzLD0X7ISrKfqsCP5oe7rPpYW4QgLfzY3gOqNCNtUQNl8K4hldGFU_Q3RyM1WpoTBPo_F72o0jpw1BVUGBBXIlTOyu_yfG122rBRrN6gmJjAhr_OVuwgdRy_UeYrqTESL1Ld0gCG5izxMg2Dks2RjMUWkzxhUn89pvBdAQCR-5pBvgClsXKdHz7beK95Fg0g3Gx5HJclg3m_FqiRpOPnBvl8NOz_FUUAP2cf5x6pETpvpfdJtrKAORigapVhmSIZ2JfqQH5gisPGE4XfGORTU9_E8nLg49o_848EoFvOfLsyVpyLtHQWRES4E2xxOU5TI6sAbT_sw_G18M3-rfEHfJQ8Gwg74RFUa3Ginat0PPwbBuH4KC2LjtoAaI18NC1BcTc8uJB8j9VZBvgAlYdx7vICIV14xWMD0xlUapQAhL2uzzp7OjG-5iHbfuQPQptW17vAC5JYWjBlwYC59QmI64bjid_UtXxcu5RP6erYTzXXcqsNgJuKAkfdMkLod2X0Okbs2CTB2m22tcJJed2I
+@basic = BasiC YWRtaW46YWRtaW4=
+@jwt_refresh = BeareR eyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJodHRwczovL2FwaS5oYWNrbmlnaHRzLmNsdWIiLCJleHAiOjE1NTE1NTAyMjksImlhdCI6MTU1MDk0NTQyOSwiaXNzIjoiaHR0cHM6Ly9hdXRoLmhhY2tuaWdodHMuY2x1YiIsInJldiI6bnVsbCwic3ViIjoiYWJjMTIzIiwidHlwIjoicmVmcmVzaCJ9.Pn4pl9MIwFO18rOQ1EA1ytBy_cNxDnaKgZkw4P4dc34n55XiTsNLgoAnOKMfPzA7b5jrhaEuYUskiCQ_9Lh3H3BovQEmE5aHOfYoAQNb3OGIvoEpzIkD8nOmmomRcviQwAaczptlKg4bxTGivh6ucVmJVKK3SkSABVIoYRyB-N7i9mtZb0zL_UtYlnictvjED1skA2g948UnADHZ-Nyle04L5xt8K8rifFZoslLT2THXahBG0aAcQJj3GEAzYH6iW06CTnx05mDoCoBoiS4F_01cY_zUTjasFv29Tby-5zhmaHQ3g_AjqyIjV-wOdr-A3fO7RMaNMg_Fu8Bbn_2iOmlgTwuCfdxfxIQ_FdMrDCVWQZJw8ABYLFAI27YwNjuS-3LGymohxD1lspRqXgEP8wDy85PDgZUKDFXSyLAAi6N14sNaEpIiNJBvkOUCPD5EviS9wI9HXTjiuo3lyRjyWzYsVGGPUt0sWM5-_0SnpG-_4ED4E4J-xmJqenngFX9BC5-htTdeMaJZ9p3ujkerZCN5C_BKVryBnCR0Mg--crh4tkenwUTsLzvFTlkzYjN-4y0stqIzSkWUw8DZJb7phyjdFK54CBibrs37rrcIZ3YD1vxkxsRbWs9YO-4s1jB4Ym7tm9XoWIBxksM1Y9KnTNDljYz0CeDWw4ft4LkMN2U
+@jwt_access = BeareR eyJhbGciOiJSUzUxMiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJodHRwczovL2FwaS5oYWNrbmlnaHRzLmNsdWIiLCJleHAiOjE1NTA5NDU0ODksImlhdCI6MTU1MDk0NTQyOSwiaXNzIjoiaHR0cHM6Ly9hdXRoLmhhY2tuaWdodHMuY2x1YiIsInN1YiI6ImFiYzEyMyIsInR5cCI6ImFjY2VzcyJ9.SJQYLkTth0mxmQ9LJ8kDqW5E2BzJcWJg7hkilo3L6y02XMsp-W4WvGsfeR948NvZWIdk3LFa7hx0xtmQrM9lrHZwK_oMZgkngAgqTwUZstqcySulql8gyj76wjybfGtj5H4QCPh1Km-HlfKDKtTCnnTUihSLMHYKqYA1wEYykMc9yUaKdlh10rhCOg5nUYalhIh15kmXCU5KMD0MuGk3-fV25dLgkX_PerSjW5nNw4LaQ85kWrGTgOdN4EZi4gzkb90fn5B2Nlpd3210cndsNr0NtGu_0GdCvtUmPVvuRwE4Hdtq-jscWthPxlMOT5SIe82l_bz5eqCJOZaBGj3C0OAg4Pic3KrVFxEx0LvfYXPv858M0IXFfuSA845iTzrB4YURyRgraokgEl4ZYZ0qwNe51cYFa-2MHZKGOXj5_pQGwdTRipb8SYFw2yW3xtxkGqdHXXLi0tRk88KKD-LrfsTGsaGnVNRW7HSUJ13VhYUUAwLDbNvsMUqPwEvHFU2P2duD0ZfKxlobHvzR3Hq9-IHdwNUfablfVqB4c_DDARH0eWJJ9UzW5wzBDj_7botAnn757aE8ASllnSukHLwHNKi1Og47MD_I4RNyhJh9ezxjlEAiRIUDAbrp1nEgCL1SEph00_hj2hTPru_JxJPfS1FjegEoxLJnmR7ySkIglTs
 
 ### DEBUG
-GET http://localhost:8080/debug/vars
-
-### Hello
-GET http://{{host}}
-
-### Generate tokens with credentials
-GET http://{{host}}/tokens
-Authorization: {{basic}}
-
-### Authenticate 
-GET http://{{usery}}/authenticate
-Authorization: {{basic}}
-
-
-### Generate tokens with Refresh
-GET http://{{host}}/tokens/refresh
-Authorization: {{jwt_refresh}}
-
-### Blacklist current refresh token
-GET http://{{host}}/tokens/revoke
-Authorization: {{jwt_refresh}} 
-
-### Blacklist all refresh tokens for current user
-GET http://{{host}}/tokens/revoke-all
-Authorization: {{jwt_refresh}} 
+GET http://{{tokens}}/debug/vars
 
 ### Get protected content
-GET http://{{host}}/restricted
+GET http://{{tokens}}/restricted
 Authorization: {{jwt_access}}
+
+### Hello
+GET http://{{tokens}}
+
+### Authenticate Basic
+GET http://{{usery}}/api/authenticate
+Authorization: {{basic}}
+
+### Authenticate Bearer <Refresh>
+GET http://{{usery}}/api/authenticate
+Authorization: {{jwt_refresh}}
+
+### Authenticate Bearer <Access>
+GET http://{{usery}}/api/authenticate
+Authorization: {{jwt_access}}
+
+### GET Users
+GET http://{{usery}}/api/users/:uid/claims
+Authorization: {{jwt_access}}
+
+
+### Generate tokens with credentials
+GET http://{{tokens}}/tokens
+Authorization: {{basic}}
+
+### Generate tokens with Refresh
+GET http://{{tokens}}/tokens
+Authorization: {{jwt_refresh}}
 
 
 

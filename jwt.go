@@ -7,7 +7,6 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
-	"github.com/google/uuid"
 )
 
 // location of the files used for signing and verification
@@ -42,50 +41,95 @@ func fatal(err error) {
 	}
 }
 
-func createTokens(u *identity, signKey *rsa.PrivateKey) (string, string, error) {
+type tokens struct {
+	Access  string `json:"access"`
+	Refresh string `json:"refresh"`
+}
 
-	access := func() (string, error) {
+func createTokens(claims map[string]interface{}, signKey *rsa.PrivateKey) (*tokens, error) {
+	//TODO: configure these
+	const iss string = "https://auth.hacknights.club" //issuer - the authorization server that issued the token (this service)
+	const aud string = "https://api.hacknights.club"  //audience - the relaying party(s) that can use the token (applications)
+	const accessExp time.Duration = time.Minute * 1
+	const refreshExp time.Duration = time.Hour * 24 * 7
+
+	access := func(now time.Time) *token {
 		//Custom Claims
 		mc := jwt.MapClaims{}
-		for k, v := range u.Claims {
+		for k, v := range claims {
 			mc[k] = v
 		}
 
 		//Standard Claims
-		now := time.Now()
-		mc["iss"] = "https://auth.tokens.com" //issuer - the authorization server that issued the token
-		mc["aud"] = "https://api.devable.com" //audience - the relaying party(s) that can use the token (application)
-		mc["sub"] = u.ID                      //subject - end user identifier
+		mc["iss"] = iss
+		mc["aud"] = aud
+		mc["typ"] = "access"
+		mc["sub"] = claims["sub"] //subject - end user identifier
 		mc["iat"] = now.Unix()
-		mc["exp"] = now.Add(time.Minute * 1).Unix() //TODO: configurable expiration
+		mc["exp"] = now.Add(accessExp).Unix()
 
-		// create a signer for rsa 256
-		t := jwt.NewWithClaims(jwt.SigningMethodRS512, mc)
-		return t.SignedString(signKey)
+		return newToken(mc)
 	}
 
-	refresh := func() (string, error) {
-		now := time.Now()
-		t := jwt.NewWithClaims(jwt.SigningMethodRS512, jwt.StandardClaims{
-			Id:        uuid.New().String(),
-			Issuer:    "https://auth.tokens.com",
-			Audience:  "https://api.devable.com",
-			Subject:   u.ID,
-			IssuedAt:  now.Unix(),
-			ExpiresAt: now.Add(time.Hour * 24 * 7).Unix(), //TODO: configurable expiration
-		})
-		return t.SignedString(signKey)
+	refresh := func(now time.Time) *token {
+
+		mc := jwt.MapClaims{
+			"iss": iss,
+			"aud": aud,
+			"typ": "refresh",
+			"rev": claims["rev"], //revision - the last significant change
+			"sub": claims["sub"],
+			"iat": now.Unix(),
+			"exp": now.Add(refreshExp).Unix(),
+		}
+
+		return newToken(mc)
 	}
 
-	a, err := access()
-	if err != nil {
-		return "", "", err
-	}
+	//TODO: Signing is slow, so trying to do it in parallel - but this ugly!
 
-	r, err := refresh()
-	if err != nil {
-		return "", "", err
-	}
+	now := time.Now()
 
-	return a, r, nil
+	a := access(now)
+	go a.sign(signKey)
+
+	r := refresh(now)
+	go r.sign(signKey)
+
+	t := &tokens{}
+	for t.Access == "" || t.Refresh == "" {
+		select {
+		case t.Access = <-a.signed:
+		case err := <-a.err:
+			if err != nil {
+				return nil, err
+			}
+		case t.Refresh = <-r.signed:
+		case err := <-r.err:
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+	return t, nil
+}
+
+type token struct {
+	*jwt.Token
+	signed chan string
+	err    chan error
+}
+
+func newToken(claims jwt.MapClaims) *token {
+	return &token{
+		Token:  jwt.NewWithClaims(jwt.SigningMethodRS512, claims),
+		signed: make(chan string),
+		err:    make(chan error),
+	}
+}
+
+func (t *token) sign(signKey *rsa.PrivateKey) {
+	signed, err := t.SignedString(signKey)
+	t.signed <- signed
+	t.err <- err
 }

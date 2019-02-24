@@ -13,14 +13,12 @@ import (
 func main() {
 	handleInterrupts(make(chan os.Signal, 1))
 
-	//TODO: read config
-
-	app := newApp()
-	always := use(traceIDs, performanceLogging, recuperate)
+	//TODO: with config
+	app := newAppHandler()
 
 	s := &http.Server{ //TODO: TLS
-		Addr:           ":8080", //TODO: use config
-		Handler:        always(app.ServeHTTP),
+		Addr:           ":8081", //TODO: use config
+		Handler:        app,
 		ReadTimeout:    5 * time.Second,
 		WriteTimeout:   10 * time.Second,
 		IdleTimeout:    120 * time.Second,

@@ -1,98 +1,85 @@
 package main
 
 import (
-	"crypto/rsa"
-	"fmt"
 	"net/http"
+
+	"github.com/hacknights/middleware"
 )
 
 type app struct {
-	negotiator negotiatorFunc
-	db         string //buntdb (simple, has TTLs)
+	negotiator negotiatorFactory
 
-	identity *identityClient
-	signKey  *rsa.PrivateKey
+	authenticate func(authorization string) (map[string]interface{}, error)
+	createTokens func(claims map[string]interface{}) (*tokens, error)
+	authJWT      func(h http.HandlerFunc) http.HandlerFunc
 }
 
-func newApp() *app {
-	return &app{
+func newAppHandler() http.Handler {
+	ic := newIdentityClient("http://:8080/")
+
+	a := app{
 		negotiator: negotiator,
-		identity:   &identityClient{},
-		signKey:    signKey,
+
+		authenticate: ic.authenticate,
+		authJWT:      middleware.AuthJWT(verifyKey),
+
+		createTokens: func(claims map[string]interface{}) (*tokens, error) {
+			return createTokens(claims, signKey)
+		},
 	}
+
+	return middleware.Use(
+		middleware.TraceIDs,
+		middleware.Logging,
+		middleware.Recuperate)(a.ServeHTTP)
 }
 
 func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	p, path := shiftPath(r.URL.Path)
+	head, rest := shiftPath(r.URL.Path)
 
-	switch p {
-	case "tokens":
-		r.URL.Path = path
-		a.handleTokens(w, r)
-		return
+	switch head {
 	case "authenticate":
 		//TODO: should be handled by usery (for now return ok)
-		a.negotiator(w, r)(
-			identity{
-				ID: "it works!",
+		// Auth is either Basic or Jwt-Refresh
+		a.negotiator(w, r).ok(
+			map[string]string{
+				"sub": "abc123",
 			},
-			http.StatusOK,
-			nil,
 		)
-		return
+	case "restricted":
+		//TODO: Remove this - only used to validate the AuthJWT middleware
+		a.authJWT(func(w http.ResponseWriter, r *http.Request) {})(w, r)
+	case "tokens":
+		r.URL.Path = rest
+		a.handleGetTokens(w, r)
 	default:
 		http.DefaultServeMux.ServeHTTP(w, r) //TOOD: should this be passed in
-		return
-	}
-}
-
-func (a *app) handleTokens(w http.ResponseWriter, r *http.Request) {
-	var p string
-	p, r.URL.Path = shiftPath(r.URL.Path)
-	n := a.negotiator(w, r)
-
-	if r.Method != "GET" {
-		n(nil, http.StatusMethodNotAllowed, fmt.Errorf("Only GET is allowed"))
-		return
-	}
-
-	switch p {
-	case "":
-		a.handleGetTokens(w, r)
-	case "refresh":
-		a.handleGetRefresh(w, r)
-	case "revoke":
-		a.handleGetRevoke(w, r)
-	case "revoke-all":
-		a.handleGetRevokeAll(w, r)
-	default:
-		n(nil, http.StatusNotFound, fmt.Errorf("not found"))
-		return
 	}
 }
 
 func (a *app) handleGetTokens(w http.ResponseWriter, r *http.Request) {
 	n := a.negotiator(w, r)
-	w.Header().Set("WWW-Authenticate", `Basic realm="tokens"`) //TODO: required?
+	var head string
+	head, r.URL.Path = shiftPath(r.URL.Path)
 
-	user, pass, ok := r.BasicAuth()
-	if !ok {
-		n(nil, http.StatusUnauthorized, fmt.Errorf("missing auth"))
+	if r.Method != http.MethodGet || head != "" {
+		n.notFound()
 		return
 	}
 
-	//TODO: suppress IdentityClient - create Tokens.ByCredentials(user, pass, signKey)
-	u, err := a.identity.ByCredentials(user, pass)
+	auth := r.Header.Get("Authorization")
+
+	u, err := a.authenticate(auth)
 	if err != nil {
-		n(nil, http.StatusUnauthorized, fmt.Errorf("invalid credentials"))
+		n.unauthorized("invalid credentials")
 		return
 	}
 
-	n(u.GenerateTokens(a.signKey))
+	tokens, err := a.createTokens(u)
+	if err != nil {
+		n.internalServer("error signing token")
+		return
+	}
+
+	n.ok(tokens)
 }
-
-func (a *app) handleGetRefresh(w http.ResponseWriter, r *http.Request) {}
-
-func (a *app) handleGetRevoke(w http.ResponseWriter, r *http.Request) {}
-
-func (a *app) handleGetRevokeAll(w http.ResponseWriter, r *http.Request) {}

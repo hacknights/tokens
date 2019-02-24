@@ -2,12 +2,38 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 )
 
-type negotiatorFunc func(w http.ResponseWriter, r *http.Request) func(interface{}, int, error)
+type negotiatorFactory func(w http.ResponseWriter, r *http.Request) negotiatorFunc
 
-func negotiator(w http.ResponseWriter, r *http.Request) func(interface{}, int, error) {
+type negotiatorFunc func(interface{}, int, error)
+
+func (n negotiatorFunc) ok(value interface{}) {
+	n(value, http.StatusOK, nil)
+}
+
+func (n negotiatorFunc) notFound() {
+	n(nil, http.StatusNotFound, fmt.Errorf("not found"))
+}
+
+func (n negotiatorFunc) internalServer(err string) {
+	n.internalServerError(fmt.Errorf(err))
+}
+
+func (n negotiatorFunc) internalServerError(err error) {
+	n(nil, http.StatusInternalServerError, err)
+}
+
+func (n negotiatorFunc) unauthorized(err string) {
+	n.unauthorizedError(fmt.Errorf(err))
+}
+func (n negotiatorFunc) unauthorizedError(err error) {
+	n(nil, http.StatusUnauthorized, err)
+}
+
+func negotiator(w http.ResponseWriter, r *http.Request) negotiatorFunc {
 	type result struct {
 		Ok      bool        `json:"ok"`
 		Errors  []string    `json:"errors,omitempty"`
@@ -34,7 +60,7 @@ func negotiator(w http.ResponseWriter, r *http.Request) func(interface{}, int, e
 			return
 		}
 
-		w.Header().Set("Content-Type", "application/json") //determine from Accept
+		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(status)
 		w.Write(json)
 	}
