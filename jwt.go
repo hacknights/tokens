@@ -2,56 +2,35 @@ package main
 
 import (
 	"crypto/rsa"
-	"io/ioutil"
-	"log"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
 )
-
-// location of the files used for signing and verification
-const (
-	privKeyPath = "keys/app.rsa"     // openssl genrsa -out app.rsa keysize
-	pubKeyPath  = "keys/app.rsa.pub" // openssl rsa -in app.rsa -pubout > app.rsa.pub
-)
-
-// using asymmetric crypto/RSA keys
-var (
-	verifyKey *rsa.PublicKey
-	signKey   *rsa.PrivateKey //TODO: Consider not holding this in memory
-)
-
-func init() {
-	signBytes, err := ioutil.ReadFile(privKeyPath)
-	fatal(err)
-
-	signKey, err = jwt.ParseRSAPrivateKeyFromPEM(signBytes)
-	fatal(err)
-
-	verifyBytes, err := ioutil.ReadFile(pubKeyPath)
-	fatal(err)
-
-	verifyKey, err = jwt.ParseRSAPublicKeyFromPEM(verifyBytes)
-	fatal(err)
-}
-
-func fatal(err error) {
-	if err != nil {
-		log.Fatal(err)
-	}
-}
 
 type tokens struct {
 	Access  string `json:"access"`
 	Refresh string `json:"refresh"`
 }
 
-func createTokens(claims map[string]interface{}, signKey *rsa.PrivateKey) (*tokens, error) {
+type tokenGeneratorFunc func(claims map[string]interface{}) (*tokens, error)
+
+// mustNewTokenGenerator creates a token generator configured with asymmetric crypto/RSA keys
+func mustNewTokenGenerator(privKeyBytes []byte) tokenGeneratorFunc {
+
+	signKey, err := jwt.ParseRSAPrivateKeyFromPEM(privKeyBytes) //ParseRSAPrivateKeyFromPEMWithPassword
+	fatal(err)
+
+	return func(claims map[string]interface{}) (*tokens, error) {
+		return createTokens(signKey, claims)
+	}
+}
+
+func createTokens(signKey *rsa.PrivateKey, claims map[string]interface{}) (*tokens, error) {
 	//TODO: configure these
 	const iss string = "https://auth.hacknights.club" //issuer - the authorization server that issued the token (this service)
-	const aud string = "https://api.hacknights.club"  //audience - the relaying party(s) that can use the token (applications)
 	const accessExp time.Duration = time.Minute * 1
 	const refreshExp time.Duration = time.Hour * 24 * 7
+	const aud string = "https://api.hacknights.club" //audience - the relaying party(s) that can use the token (applications)
 
 	access := func(now time.Time) *token {
 		//Custom Claims
@@ -75,7 +54,7 @@ func createTokens(claims map[string]interface{}, signKey *rsa.PrivateKey) (*toke
 
 		mc := jwt.MapClaims{
 			"iss": iss,
-			"aud": aud,
+			"aud": iss,
 			"typ": "refresh",
 			"rev": claims["rev"], //revision - the last significant change
 			"sub": claims["sub"],
@@ -121,6 +100,19 @@ type token struct {
 }
 
 func newToken(claims jwt.MapClaims) *token {
+	//TODO: Populate the Header with the KeyID
+	/*
+		func NewWithClaims(method SigningMethod, claims Claims) *Token {
+			return &Token{
+				Header: map[string]interface{}{
+					"typ": "JWT",
+					"alg": method.Alg(),
+				},
+				Claims: claims,
+				Method: method,
+			}
+		}
+	*/
 	return &token{
 		Token:  jwt.NewWithClaims(jwt.SigningMethodRS512, claims),
 		signed: make(chan string),

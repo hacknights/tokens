@@ -3,6 +3,7 @@ package main
 import (
 	_ "expvar" //standardized metrics (GET /debug/vars)
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -13,8 +14,24 @@ import (
 func main() {
 	handleInterrupts(make(chan os.Signal, 1))
 
+	privKeyBytes, err := ioutil.ReadFile("keys/app.rsa")
+	fatal(err)
+
+	pubKeyBytes, err := ioutil.ReadFile("keys/app.rsa.pub")
+	fatal(err)
+
+	ic := newIdentityClient("http://:8081/")
+
 	//TODO: with config
-	app := newAppHandler()
+	app := newAppHandler(
+		appConfig{
+			PrivKeyBytes: privKeyBytes,
+			PubKeyBytes:  pubKeyBytes,
+			Issuer:       "https://auth.hacknights.club",
+
+			authenticate: ic.authenticate, //TODO: circuit-break to anonymous?
+		},
+	)
 
 	s := &http.Server{ //TODO: TLS
 		Addr:           ":8081", //TODO: use config
@@ -40,4 +57,10 @@ func handleInterrupts(ch chan os.Signal) {
 			os.Exit(1)
 		}
 	}()
+}
+
+func fatal(err error) {
+	if err != nil {
+		log.Fatal(err)
+	}
 }
