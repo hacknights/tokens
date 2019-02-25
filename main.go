@@ -20,7 +20,7 @@ func main() {
 	pubKeyBytes, err := ioutil.ReadFile("keys/app.rsa.pub")
 	fatal(err)
 
-	ic := newIdentityClient("http://:8081/")
+	ic := newIdentityClient("http://:8081/") //TODO: This should get /user/:uid/claims and needs its own credentials...
 
 	//TODO: with config
 	app := newAppHandler(
