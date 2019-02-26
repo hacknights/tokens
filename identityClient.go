@@ -28,8 +28,13 @@ func newIdentityClient(rawBaseURL string) *identityClient {
 	}
 }
 
-func (c *identityClient) authenticate(authorization string) (map[string]interface{}, error) {
-	req, err := c.newRequest("GET", "api/authenticate", nil)
+func (c *identityClient) byCredentials(appID, user, pass string) (map[string]interface{}, error) {
+	auth := "Basic " + base64.StdEncoding.EncodeToString([]byte(user+":"+pass))
+	return c.authenticate(appID, auth)
+}
+
+func (c *identityClient) authenticate(appID, authorization string) (map[string]interface{}, error) {
+	req, err := c.newRequest("GET", appID+"/authenticate", nil)
 	if err != nil {
 		return nil, err
 	}
@@ -46,7 +51,18 @@ func (c *identityClient) authenticate(authorization string) (map[string]interfac
 	return res.Content, err
 }
 
-func (c *identityClient) byCredentials(user, pass string) (map[string]interface{}, error) {
-	auth := "Basic " + base64.StdEncoding.EncodeToString([]byte(user+":"+pass))
-	return c.authenticate(auth)
+func (c *identityClient) revision(appID, userID string) (string, error) {
+	req, err := c.newRequest("GET", appID+"/users/"+userID+"/claims/revision", nil)
+	if err != nil {
+		return "", err
+	}
+
+	type result struct {
+		OK      bool     `json:"ok"`
+		Errors  []string `json:"errors,omitempty"`
+		Content string   `json:"content,omitempty"`
+	}
+	res := result{}
+	_, err = c.do(req, &res)
+	return res.Content, err
 }

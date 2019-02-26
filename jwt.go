@@ -60,6 +60,7 @@ func createTokens(signKey *rsa.PrivateKey, claims map[string]interface{}) (*toke
 			"sub": claims["sub"],
 			"iat": now.Unix(),
 			"exp": now.Add(refreshExp).Unix(),
+			"claims": claims,
 		}
 
 		return newToken(mc)

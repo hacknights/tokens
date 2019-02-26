@@ -11,7 +11,8 @@ import (
 type appConfig struct {
 	PrivKeyBytes []byte // openssl genrsa -out app.rsa keysize
 	PubKeyBytes  []byte // openssl rsa -in app.rsa -pubout > app.rsa.pub
-	authenticate func(authorization string) (map[string]interface{}, error)
+	authenticate func(appID, authorization string) (map[string]interface{}, error)
+	getRevision  func(appID, userID string) (string, error)
 	Issuer       string
 }
 
@@ -22,7 +23,8 @@ type app struct {
 	authByScheme func(h http.HandlerFunc) http.HandlerFunc
 
 	generateTokens tokenGeneratorFunc
-	authenticate   func(authorization string) (map[string]interface{}, error)
+	authenticate   func(appID, authorization string) (map[string]interface{}, error)
+	getRevision    func(appID, userID string) (string, error)
 }
 
 func newAppHandler(cfg appConfig) http.Handler {
@@ -35,8 +37,7 @@ func newAppHandler(cfg appConfig) http.Handler {
 	)
 
 	authByScheme := middleware.AuthByScheme(map[string]func(h http.HandlerFunc) http.HandlerFunc{
-		"basic":  middleware.AuthSkip(), //TODO: DANGER this should be specified closer to usage, to avoid misue
-		"bearer": authJWT,
+		"basic": middleware.AuthSkip(),
 	})
 
 	a := app{
@@ -47,6 +48,7 @@ func newAppHandler(cfg appConfig) http.Handler {
 
 		generateTokens: tokenGenerator,
 		authenticate:   cfg.authenticate,
+		getRevision:    cfg.getRevision,
 	}
 
 	return middleware.Use(
@@ -58,15 +60,20 @@ func newAppHandler(cfg appConfig) http.Handler {
 func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	const (
 		tokens       string = "/tokens"
-		authenticate string = "/api/authenticate"
+		refresh      string = "/refresh"
 		jwks         string = "/.well-known/openid-configuration/jwks" //TODO: provide an endpoint for Validator to lookup the PublicKey (must be over https)
+		authenticate string = "/:appid/authenticate"                   //TODO: usery must capture appId
 	)
-	match := firstCaseInsensitivePrefixMatch(r.URL.Path, tokens, authenticate)
+	match := firstCaseInsensitivePrefixMatch(r.URL.Path, tokens, refresh, authenticate)
 
 	switch match {
 	case tokens:
 		r.URL.Path = strings.TrimPrefix(r.URL.Path, tokens)
-		a.authByScheme(a.handleGetTokens)(w, r)
+		a.authByScheme(a.handleTokens)(w, r)
+
+	case refresh:
+		r.URL.Path = strings.TrimPrefix(r.URL.Path, refresh)
+		a.authJWT(a.handleRefresh)(w, r)
 
 	case authenticate:
 		//TODO: should be handled by usery (for now return ok)
@@ -78,18 +85,18 @@ func (a *app) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		http.DefaultServeMux.ServeHTTP(w, r) //TOOD: should this be passed in
 	}
 }
-func (a *app) handleGetTokens(w http.ResponseWriter, r *http.Request) {
-	head, _ := shiftPath(r.URL.Path)
+func (a *app) handleTokens(w http.ResponseWriter, r *http.Request) {
+	appID, _ := shiftPath(r.URL.Path)
 	n := a.negotiator(w, r)
 
-	if http.MethodGet != r.Method || head != "" {
+	if http.MethodGet != r.Method || appID == "" {
 		n.NotFound()
 		return
 	}
 
 	auth := r.Header.Get("Authorization")
 
-	u, err := a.authenticate(auth)
+	u, err := a.authenticate(appID, auth)
 	if err != nil {
 		n.Unauthorized("invalid credentials")
 		return
@@ -104,11 +111,39 @@ func (a *app) handleGetTokens(w http.ResponseWriter, r *http.Request) {
 	n.OK(tokens)
 }
 
+func (a *app) handleRefresh(w http.ResponseWriter, r *http.Request) {
+	head, _ := shiftPath(r.URL.Path)
+	n := a.negotiator(w, r)
+
+	if http.MethodGet != r.Method || head != "" {
+		n.NotFound()
+		return
+	}
+
+	//TODO: everything we need should be in the RefreshToken
+	//Must verify rev matches RefreshToken.Rev
+	rev, err := a.getRevision("appID", "userID")
+	if err != nil || rev != "RefreshToken.Rev" {
+		n.Unauthorized("invalid credentials")
+		return
+	}
+
+	var claims map[string]interface{} //from RefreshToken
+	tokens, err := a.generateTokens(claims)
+	if err != nil {
+		n.InternalServer("error signing token")
+		return
+	}
+
+	n.OK(tokens)
+}
+
 func (a *app) handleAuthenticate(w http.ResponseWriter, r *http.Request) {
 	//TODO: replace this with a circuit-breaker
 	a.negotiator(w, r).OK(
 		map[string]string{
 			"sub": "anonymous",
+			"rev": "0",
 		},
 	)
 }

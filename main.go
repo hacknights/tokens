@@ -30,6 +30,7 @@ func main() {
 			Issuer:       "https://auth.hacknights.club",
 
 			authenticate: ic.authenticate, //TODO: circuit-break to anonymous?
+			getRevision:  ic.revision,
 		},
 	)
 

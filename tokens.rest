@@ -33,7 +33,7 @@ Authorization: {{jwt_access}}
 
 
 ### Generate tokens with Basic
-GET http://{{tokens}}/tokens
+GET http://{{tokens}}/tokens/:appId
 Authorization: {{basic}}
 
 ### Generate tokens with Refresh
@@ -42,6 +42,16 @@ Authorization: {{jwt_refresh}}
 
 ### Generate tokens with Access
 GET http://{{tokens}}/tokens
+Authorization: {{jwt_access}}
+
+
+### Refresh tokens with Refresh
+GET http://{{tokens}}/refresh
+Authorization: {{jwt_refresh}}
+
+
+### Refresh tokens with Access
+GET http://{{tokens}}/refresh
 Authorization: {{jwt_access}}
 
 
